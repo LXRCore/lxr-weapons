@@ -23,7 +23,7 @@
     © 2026 iBoss21 / The Lux Empire | wolves.land | All Rights Reserved
 ]]
 
-
+local Translations = {
     error = {
         canceled = 'Canceled',
         max_ammo = 'Max Ammo Capacity',
@@ -42,7 +42,7 @@
     info = {
         loading_bullets = 'Loading Bullets',
         repair_button = 'Fix Weapons'
-    }
+    },
 }
 
 Lang = Locale:new({
