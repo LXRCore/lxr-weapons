@@ -41,7 +41,7 @@
     if (!D.ammo.length) { host.innerHTML = `<div class="gs-empty">—</div>`; return; }
     D.ammo.forEach(a => {
       const row = document.createElement('div'); row.className = 'lxr-row';
-      row.innerHTML = `<span class="lxr-row-name">${esc(a.label)}</span><span class="lxr-grow"></span><span class="lxr-row-meta lxr-num">${a.n} ${esc(t('ui.rounds'))}</span>${D.returnToSatchel ? `<button class="lxr-btn lxr-btn-ghost lxr-btn-sm" data-class="${esc(a.class)}">${esc(t('ui.unload'))}</button>` : ''}`;
+      row.innerHTML = `<span class="lxr-row-name">${esc(a.label)}</span><span class="lxr-grow"></span><span class="lxr-row-meta lxr-num">${Number(a.n) || 0} ${esc(t('ui.rounds'))}</span>${D.returnToSatchel ? `<button class="lxr-btn lxr-btn-ghost lxr-btn-sm" data-class="${esc(a.class)}">${esc(t('ui.unload'))}</button>` : ''}`;
       const b = row.querySelector('button'); if (b) b.addEventListener('click', () => act('unload', { class: a.class }));
       host.appendChild(row);
     });
@@ -59,7 +59,7 @@
     if (!w) { host.classList.add('is-empty'); host.innerHTML = `<span class="lxr-mono">${esc(t('ui.pick'))}</span>`; return; }
     host.classList.remove('is-empty');
     const head = document.createElement('div'); head.className = 'gs-head';
-    head.innerHTML = `<div><h2 class="lxr-cut gs-name">${esc(w.label)}</h2><div class="gs-facts">${w.maker ? `<span>${esc(t('ui.maker'))} <b>${esc(w.maker)}</b></span>` : ''}<span>${esc(t('ui.era'))} <b>${esc(w.era)}</b></span>${w.clip ? `<span>${esc(t('ui.clip'))} <b>${w.clip}</b></span>` : ''}<span>${esc(t('ui.serial'))} <b>${esc(w.serial)}</b></span></div></div><div class="gs-state ${w.drawn ? 'is-on' : ''}">${esc(t(w.drawn ? 'ui.drawn' : 'ui.stowed'))}</div>`;
+    head.innerHTML = `<div><h2 class="lxr-cut gs-name">${esc(w.label)}</h2><div class="gs-facts">${w.maker ? `<span>${esc(t('ui.maker'))} <b>${esc(w.maker)}</b></span>` : ''}<span>${esc(t('ui.era'))} <b>${esc(w.era)}</b></span>${w.clip ? `<span>${esc(t('ui.clip'))} <b>${Number(w.clip) || 0}</b></span>` : ''}<span>${esc(t('ui.serial'))} <b>${esc(w.serial)}</b></span></div></div><div class="gs-state ${w.drawn ? 'is-on' : ''}">${esc(t(w.drawn ? 'ui.drawn' : 'ui.stowed'))}</div>`;
     host.appendChild(head);
 
     // condition + repair
@@ -74,7 +74,7 @@
     const st = block(t('ui.stats'), '');
     const sb = st.querySelector('.gs-block__body'); sb.className += ' gs-stats';
     STATS.forEach(k => {
-      const base = (w.base && w.base[k]) || 0, v = (w.stats && w.stats[k]) || base;
+      const base = Number(w.base && w.base[k]) || 0, v = Number(w.stats && w.stats[k]) || base;
       const el = document.createElement('div'); el.className = 'gs-stat';
       let pips = '';
       for (let i = 1; i <= 10; i++) pips += `<span class="gs-pip ${i <= Math.min(v, base) ? 'is-on' : ''} ${i > base && i <= v ? 'is-mod' : ''}"></span>`;
