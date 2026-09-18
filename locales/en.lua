@@ -1,51 +1,28 @@
---[[
-    ██╗     ██╗  ██╗██████╗        ██╗    ██╗███████╗ █████╗ ██████╗  ██████╗ ███╗   ██╗███████╗
-    ██║     ╚██╗██╔╝██╔══██╗       ██║    ██║██╔════╝██╔══██╗██╔══██╗██╔═══██╗████╗  ██║██╔════╝
-    ██║      ╚███╔╝ ██████╔╝█████╗ ██║ █╗ ██║█████╗  ███████║██████╔╝██║   ██║██╔██╗ ██║███████╗
-    ██║      ██╔██╗ ██╔══██╗╚════╝ ██║███╗██║██╔══╝  ██╔══██║██╔═══╝ ██║   ██║██║╚██╗██║╚════██║
-    ███████╗██╔╝ ██╗██║  ██║       ╚███╔███╔╝███████╗██║  ██║██║     ╚██████╔╝██║ ╚████║███████║
-    ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝        ╚══╝╚══╝ ╚══════╝╚═╝  ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+--[[ ═══════════════════════════════════════════════════════════════════════════
+     LXR-WEAPONS — Locale: English (canonical)
+     Developer   : iBoss21 | Brand : LXRCore | https://www.lxrcore.com
+     © 2026 iBoss21 / LXRCore — All Rights Reserved
+     ═══════════════════════════════════════════════════════════════════════════ ]]
 
-    🐺 LXR Weapons System — Locales (English)
-
-    ═══════════════════════════════════════════════════════════════════════════════
-    SERVER INFORMATION
-    ═══════════════════════════════════════════════════════════════════════════════
-
-    Server:    The Land of Wolves 🐺
-    Developer: iBoss21 / The Lux Empire
-    Website:   https://www.wolves.land
-    Discord:   https://discord.gg/CrKcWdfd3A
-    Store:     https://theluxempire.tebex.io
-
-    ═══════════════════════════════════════════════════════════════════════════════
-
-    © 2026 iBoss21 / The Lux Empire | wolves.land | All Rights Reserved
-]]
-
-local Translations = {
+Locale.Register('en', {
+    prompt = { gunsmith = '%{name}' },
     error = {
-        canceled = 'Canceled',
-        max_ammo = 'Max Ammo Capacity',
-        no_weapon = 'You have no weapon.',
-        no_support_attachment = 'This weapon does not support this attachment.',
-        no_weapon_in_hand = 'You dont have a weapon in your hand.',
-        weapon_broken = 'This weapon is broken and can not be used.',
-        no_damage_on_weapon = 'This weapon is not damaged..',
-        weapon_broken_need_repair = 'Your weapon is broken, you need to repair it before you can use it again.',
-        attachment_already_on_weapon = 'You already have a %{value} on your weapon.'
-    },
-    success = {
-        reloaded = 'Reloaded',
-        weapon_ready = 'Your Weapon is Ready'
+        not_yours = 'That gun is not in your satchel.', too_many = 'You are carrying enough of those.', no_dual = 'That gun cannot be paired.',
+        no_holster = 'No free holster for that.', pool_full = 'You cannot carry more %{label}.', nothing_in_hand = 'Hold the weapon you want to tend.',
+        wrong_care = 'That will not help this weapon.', pristine = 'It is in perfect condition already.', jammed = '%{label} jammed — it needs cleaning.',
+        rate = 'Slow down.', invalid = 'That request is not valid.', too_far = 'Step up to the counter.', no_money = 'You cannot afford that. Total: $%{amount}.',
+        no_fit = 'That part does not fit this weapon.', fitted = 'That part is already on it.', too_heavy = 'Your satchel cannot take that many rounds.',
     },
     info = {
-        loading_bullets = 'Loading Bullets',
-        repair_button = 'Fix Weapons'
+        loaded = 'Loaded %{n} × %{label}.', cared = '%{label} is at %{q}%%.', wearing = '%{label} is wearing down (%{q}%%).', holstered = '%{label} put away.',
+        paid = 'Paid $%{amount}.', unloaded = '%{n} rounds returned to your satchel.',
     },
-}
-
-Lang = Locale:new({
-    phrases = Translations,
-    warnOnMissing = true
+    ui = {
+        gunsmith = 'Gunsmith', caring = 'Tending %{label}', weapons = 'Your guns', none = 'Nothing in the satchel', condition = 'Condition', repair = 'Repair',
+        parts = 'Parts', ammo = 'Loaded cartridges', unload = 'Unload', close = 'Leave', cash = 'Cash', fitted = 'Fitted', fit = 'Fit', remove = 'Remove',
+        damage = 'Damage', range = 'Range', rate = 'Rate of fire', accuracy = 'Accuracy', reload = 'Reload', serial = 'Serial', maker = 'Maker', era = 'Pattern',
+        clip = 'Rounds', drawn = 'On you', stowed = 'In the satchel', cosmetic = 'Cosmetic', pristine = 'Like new', jammed = 'Jammed', hint_close = 'leave',
+        stats = 'Handling', group_barrel = 'Barrel', group_sight = 'Sights', group_scope = 'Scope', group_grip = 'Grip', group_stock = 'Stock', group_rifling = 'Rifling',
+        group_finish = 'Finish', group_engrave = 'Engraving', group_wrap = 'Wrap', rounds = 'rounds', pick = 'Pick a gun on the left',
+    },
 })

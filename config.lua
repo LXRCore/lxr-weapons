@@ -1,327 +1,148 @@
 --[[
-    ██╗     ██╗  ██╗██████╗        ██╗    ██╗███████╗ █████╗ ██████╗  ██████╗ ███╗   ██╗███████╗
-    ██║     ╚██╗██╔╝██╔══██╗       ██║    ██║██╔════╝██╔══██╗██╔══██╗██╔═══██╗████╗  ██║██╔════╝
-    ██║      ╚███╔╝ ██████╔╝█████╗ ██║ █╗ ██║█████╗  ███████║██████╔╝██║   ██║██╔██╗ ██║███████╗
-    ██║      ██╔██╗ ██╔══██╗╚════╝ ██║███╗██║██╔══╝  ██╔══██║██╔═══╝ ██║   ██║██║╚██╗██║╚════██║
-    ███████╗██╔╝ ██╗██║  ██║       ╚███╔███╔╝███████╗██║  ██║██║     ╚██████╔╝██║ ╚████║███████║
-    ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝        ╚══╝╚══╝ ╚══════╝╚═╝  ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+    ██╗     ██╗  ██╗██████╗       ██╗    ██╗███████╗ █████╗ ██████╗  ██████╗ ███╗   ██╗███████╗
+    ██║     ╚██╗██╔╝██╔══██╗      ██║    ██║██╔════╝██╔══██╗██╔══██╗██╔═══██╗████╗  ██║██╔════╝
+    ██║      ╚███╔╝ ██████╔╝█████╗██║ █╗ ██║█████╗  ███████║██████╔╝██║   ██║██╔██╗ ██║███████╗
+    ██║      ██╔██╗ ██╔══██╗╚════╝██║███╗██║██╔══╝  ██╔══██║██╔═══╝ ██║   ██║██║╚██╗██║╚════██║
+    ███████╗██╔╝ ██╗██║  ██║      ╚███╔███╔╝███████╗██║  ██║██║     ╚██████╔╝██║ ╚████║███████║
+    ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝       ╚══╝╚══╝ ╚══════╝╚═╝  ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═══╝╚══════╝
 
-    🐺 LXR Core - Weapons System
+    LXR Core - Weapons
 
-    This configuration file controls the weapon management system for RedM.
-    Players can manage weapon repair, ammunition, and durability tracking.
-    Each weapon type has configurable repair costs, ammo limits, and degradation rates.
+    Every gun is an item with a serial and a condition. Using it draws it,
+    using it again holsters it. Cartridges are items too: loading them moves
+    rounds from the satchel into a per-calibre pool the server owns and the
+    game ped mirrors. Shots wear the gun down; kits, oil and whetstones bring
+    it back; a gunsmith repairs, fits parts and engraves at 1899 prices.
 
-    ═══════════════════════════════════════════════════════════════════════════════
-    SERVER INFORMATION
-    ═══════════════════════════════════════════════════════════════════════════════
+    Brand:       LXRCore — Lux Empire eXperience RedM Core
+    Product:     wolves.land / The Land of Wolves
+    Developer:   iBoss21 / LXRCore
+    Website:     https://www.lxrcore.com
+    Discord:     https://discord.gg/ZHMKVYyhBa (development)
+    GitHub:      https://github.com/LXRCore
 
-    Server:      The Land of Wolves 🐺
-    Tagline:     Georgian RP 🇬🇪 | მგლების მიწა - რჩეულთა ადგილი!
-    Description: ისტორია ცოცხლდება აქ! (History Lives Here!)
-    Type:        Serious Hardcore Roleplay
-    Access:      Discord & Whitelisted
+    Version: 3.0.0
+    Performance Target: 0.00 ms idle (one thread only while a gun is in hand)
 
-    Developer:   iBoss21 / The Lux Empire
-    Website:     https://www.wolves.land
-    Discord:     https://discord.gg/CrKcWdfd3A
-    GitHub:      https://github.com/iBoss21
-    Store:       https://theluxempire.tebex.io
-
-    ═══════════════════════════════════════════════════════════════════════════════
-
-    Version: 1.0.2
-    Performance Target: Optimized for minimal server overhead and client FPS impact
-
-    Tags: RedM, Georgian, SeriousRP, Whitelist, Weapons, Repair, Durability, Ammo
-
-    Framework Support:
-    - LXR Core (Primary)
-    - RSG Core (Compatible)
-    - VORP Core (Compatible)
-    - RedEM:RP (Compatible)
-    - QBR Core (Compatible)
-    - QR Core (Compatible)
-    - Standalone (Compatible)
-
-    ═══════════════════════════════════════════════════════════════════════════════
-    CREDITS
-    ═══════════════════════════════════════════════════════════════════════════════
-
-    Script Author: iBoss21 / The Lux Empire for The Land of Wolves
-
-    © 2026 iBoss21 / The Lux Empire | wolves.land | All Rights Reserved
+    © 2026 iBoss21 / LXRCore | lxrcore.com | All Rights Reserved
 ]]
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- 🐺 RESOURCE NAME PROTECTION - RUNTIME CHECK
--- ═══════════════════════════════════════════════════════════════════════════════
-
-local REQUIRED_RESOURCE_NAME = "lxr-weapons"
-local currentResourceName = GetCurrentResourceName()
-
-if currentResourceName ~= REQUIRED_RESOURCE_NAME then
-    error(string.format([[
-
-        ═══════════════════════════════════════════════════════════════════════════════
-        ❌ CRITICAL ERROR: RESOURCE NAME MISMATCH ❌
-        ═══════════════════════════════════════════════════════════════════════════════
-
-        Expected: %s
-        Got: %s
-
-        This resource is branded and must maintain the correct name.
-        Rename the folder to "%s" to continue.
-
-        🐺 wolves.land - The Land of Wolves
-
-        ═══════════════════════════════════════════════════════════════════════════════
-
-    ]], REQUIRED_RESOURCE_NAME, currentResourceName, REQUIRED_RESOURCE_NAME))
-end
-
-Config = {}
+Config = Config or {}
 
 -- ████████████████████████████████████████████████████████████████████████████████
--- ████████████████████████ SERVER BRANDING & INFO ████████████████████████████████
+-- ████████████████████████ LANGUAGE ██████████████████████████████████████████████
 -- ████████████████████████████████████████████████████████████████████████████████
+Config.Lang = 'en'
 
-Config.ServerInfo = {
-    name = 'The Land of Wolves 🐺',
-    tagline = 'Georgian RP 🇬🇪 | მგლების მიწა - რჩეულთა ადგილი!',
-    description = 'ისტორია ცოცხლდება აქ!', -- History Lives Here!
-    type = 'Serious Hardcore Roleplay',
-    access = 'Discord & Whitelisted',
-
-    -- Contact & Links
-    website = 'https://www.wolves.land',
-    discord = 'https://discord.gg/CrKcWdfd3A',
-    github = 'https://github.com/iBoss21',
-    store = 'https://theluxempire.tebex.io',
-
-    -- Developer Info
-    developer = 'iBoss21 / The Lux Empire',
-
-    -- Tags
-    tags = {'RedM', 'Georgian', 'SeriousRP', 'Whitelist', 'Weapons', 'Repair', 'Durability', 'Ammo'}
+-- ████████████████████████████████████████████████████████████████████████████████
+-- ████████████████████████ WIELDING ══════════════════════════════════════════════
+-- ████████████████████████████████████████████████████████████████████████████████
+-- Carry limits per category come from the core (LXRShared.WeaponCategories.maxCarry).
+-- attach: where each holster slot lives on the ped (game attach points).
+Config.Wield = {
+    dual = true,                 -- a second sidearm goes to the left holster when the record allows it
+    drawInHand = true,           -- draw straight into the hands (false: into the holster, the wheel picks it)
+    dropOnDeath = true,          -- guns leave the hands when the character dies (they stay in the satchel)
+    holsterOnLogout = true,      -- the loadout is rebuilt from scratch on the next login
+    attach = {
+        sidearm = { 2, 3 },      -- PISTOL_R, PISTOL_L
+        longarm = { 9, 10 },     -- RIFLE, RIFLE_ALTERNATE
+        melee   = { 4 },         -- KNIFE
+        thrown  = { 6 },         -- THROWER
+        bow     = { 7 },         -- BOW
+        kit     = { 11 },        -- LANTERN
+    },
 }
 
 -- ████████████████████████████████████████████████████████████████████████████████
--- ████████████████████████ FRAMEWORK CONFIGURATION ███████████████████████████████
+-- ████████████████████████ AMMUNITION ════════════════════════════════════════════
 -- ████████████████████████████████████████████████████████████████████████████████
-
---[[
-    Framework Priority (in order):
-    1. LXR-Core (Primary)
-    2. RSG-Core (Primary)
-    3. VORP Core (Supported)
-    4. RedEM:RP (Optional - if detected)
-    5. QBR-Core (Optional - if detected)
-    6. QR-Core (Optional - if detected)
-    7. Standalone (Fallback)
-]]
-
-Config.Framework = 'auto' -- 'auto' or manual: 'lxr-core', 'rsg-core', 'vorp_core', 'redem_roleplay', 'qbr-core', 'qr-core', 'standalone'
-
--- Framework-specific settings
-Config.FrameworkSettings = {
-    ['lxr-core'] = {
-        resource = 'lxr-core',
-        notifications = 'ox_lib',
-        inventory = 'lxr-inventory',
-        target = 'ox_target',
-        events = {
-            server = 'lxr-core:server:%s',
-            client = 'lxr-core:client:%s',
-            callback = 'lxr-core:callback:%s'
-        }
-    },
-    ['rsg-core'] = {
-        resource = 'rsg-core',
-        notifications = 'ox_lib',
-        inventory = 'rsg-inventory',
-        target = 'ox_target',
-        events = {
-            server = 'RSGCore:Server:%s',
-            client = 'RSGCore:Client:%s',
-            callback = 'RSGCore:Callback:%s'
-        }
-    },
-    ['vorp_core'] = {
-        resource = 'vorp_core',
-        notifications = 'vorp',
-        inventory = 'vorp_inventory',
-        target = 'vorp_core',
-        events = {
-            server = 'vorp:server:%s',
-            client = 'vorp:client:%s'
-        }
-    },
-    ['redem_roleplay'] = {
-        resource = 'redem_roleplay',
-        notifications = 'redem',
-        inventory = 'redem_inventory',
-        target = 'redem_target',
-        events = {
-            server = 'redem:%s:server',
-            client = 'redem:%s:client'
-        }
-    },
-    ['qbr-core'] = {
-        resource = 'qbr-core',
-        notifications = 'ox_lib',
-        inventory = 'qbr-inventory',
-        target = 'ox_target',
-        events = {
-            server = 'QBR:Server:%s',
-            client = 'QBR:Client:%s'
-        }
-    },
-    ['qr-core'] = {
-        resource = 'qr-core',
-        notifications = 'ox_lib',
-        inventory = 'qr-inventory',
-        target = 'ox_target',
-        events = {
-            server = 'QR:Server:%s',
-            client = 'QR:Client:%s'
-        }
-    },
-    ['standalone'] = {
-        notifications = 'print',
-        inventory = 'none',
-        target = 'none'
-    }
+-- One pool per cartridge (item name = calibre), persisted in character metadata.
+Config.Ammo = {
+    maxPool = 200,               -- rounds of one calibre a character carries loaded
+    maxPoolByClass = { ammo_rifle_elephant = 20, ammo_shotgun = 60, ammo_shotgun_slug = 40, ammo_shotgun_incendiary = 20, ammo_shotgun_explosive = 10,
+                       ammo_arrow = 40, ammo_arrow_improved = 40, ammo_arrow_smallgame = 40, ammo_arrow_poison = 20, ammo_arrow_fire = 20, ammo_arrow_dynamite = 5 },
+    loadPerUse = 0,              -- rounds moved per use of a cartridge item; 0 = the whole stack (capped by the pool)
+    returnToSatchel = true,      -- the gunsmith panel can unload a pool back into cartridge items
 }
 
 -- ████████████████████████████████████████████████████████████████████████████████
--- ████████████████████████ DEBUG SETTINGS ████████████████████████████████████████
+-- ████████████████████████ CONDITION ═════════════════════════════════════════════
 -- ████████████████████████████████████████████████████████████████████████████████
-
-Config.Debug = false -- Enable debug prints and extra logging
-
--- ████████████████████████████████████████████████████████████████████████████████
--- ████████████████████████ WEAPON REPAIR POINTS ██████████████████████████████████
--- ████████████████████████████████████████████████████████████████████████████████
-
--- Define locations where players can bring weapons for repair.
--- Add additional entries with incrementing numeric keys and vector3 coordinates.
-
-Config.WeaponRepairPoints = {
-    [1] = {coords = vector3(1417.818, 268.0298, 89.61942)}
+-- Quality lives in the item's info (0–100). Each shot costs `degrade` from the core record
+-- (percent), scaled here. At `jamAt` the gun refuses to fire until it is cleaned or repaired.
+Config.Condition = {
+    degradeMult = 1.0,
+    jamAt = 0,
+    reportEveryMs = 3000,        -- the client batches shots and reports them this often
+    warnAt = { 25, 10 },         -- one warning per threshold as the gun wears
+    -- field care: item → { restore = points, only = { category... } | nil }
+    care = {
+        cleaning_kit = { restore = 60 },
+        gun_oil      = { restore = 20 },
+        whetstone    = { restore = 50, only = { 'melee', 'bow' } },
+    },
+    careMs = 6000,
 }
 
 -- ████████████████████████████████████████████████████████████████████████████████
--- ████████████████████████ WEAPON REPAIR COSTS ███████████████████████████████████
+-- ████████████████████████ GUNSMITHS ═════════════════════════════════════════════
 -- ████████████████████████████████████████████████████████████████████████████████
+-- The gunsmith repairs, fits and removes components, engraves, and unloads pools.
+-- Ammunition and new guns are sold by lxr-shops.
+Config.Gunsmiths = {
+    { id = 'valentine',  label = 'Valentine Gunsmith',  coords = vector3(-285.60, 776.07, 119.36), blip = true },
+    { id = 'saintdenis', label = 'Saint Denis Gunsmith', coords = vector3(2717.10, -1247.30, 50.78), blip = true, priceMult = 1.25 },
+    { id = 'rhodes',     label = 'Rhodes Gunsmith',     coords = vector3(1326.32, -1321.07, 77.04), blip = true },
+    { id = 'tumbleweed', label = 'Tumbleweed Gunsmith', coords = vector3(-5516.68, -2936.11, -1.35), blip = true, priceMult = 1.1 },
+    { id = 'annesburg',  label = 'Annesburg Gunsmith',  coords = vector3(2938.82, 1329.22, 44.60),  blip = true, priceMult = 1.15 },
+}
 
--- Repair cost per weapon category (in-game currency).
--- Keys must match weapon class names derived from ammotype (e.g. "pistol", "revolver").
-
-Config.WeaponRepairCosts = {
-    ["pistol"]   = 100,
-    ["revolver"] = 200,
-    ["repeater"] = 300,
-    ["rifle"]    = 300,
-    ["shotgun"]  = 400
+-- Prices in 1899 dollars. A full repair of a $30 revolver costs about a fifth of a new one;
+-- parts carry the core's component price; engravings are labour.
+Config.Prices = {
+    repairPct = 0.20,            -- share of the item's value for 0 → 100
+    repairMin = 0.50,
+    fitLabour = 0.75,            -- fitting any component
+    removeLabour = 0.25,
+    componentMult = 1.0,         -- against LXRShared.WeaponComponents[key].price
+    unload = 0,
 }
 
 -- ████████████████████████████████████████████████████████████████████████████████
--- ████████████████████████ MAXIMUM AMMO LIMITS ███████████████████████████████████
+-- ████████████████████████ COMPONENTS ════════════════════════════════════════════
 -- ████████████████████████████████████████████████████████████████████████████████
-
--- Maximum ammo capacity per weapon group hash.
--- Extend by adding new GROUP_ entries.
-
-Config.MaxAmmo = {
-    [`GROUP_PISTOL`]   = 6,
-    [`GROUP_RIFLE`]    = 12,
-    [`GROUP_REVOLVER`] = 6,
-    [`GROUP_SHOTGUN`]  = 6,
-    [`GROUP_BOW`]      = 6
+-- The gunsmith vocabulary is the core's (LXRShared.WeaponComponents). A fitted part is
+-- stored in info.components and given to the game weapon by component name:
+--   COMPONENT_<WEAPON WITHOUT 'WEAPON_'>_<PART>   e.g. COMPONENT_REVOLVER_CATTLEMAN_GRIP_IVORY
+-- Override single keys here when the game names differ. Cosmetic parts never change stats.
+Config.Components = {
+    pattern = 'COMPONENT_%s_%s',
+    names = {
+        -- key = { part = 'GRIP_IVORY' }  -- the second placeholder
+        grip_ivory = { part = 'GRIP_IVORY' }, grip_pearl = { part = 'GRIP_PEARL' }, grip_wood = { part = 'GRIP_WOOD' },
+        barrel_long = { part = 'BARREL_LONG' }, barrel_short = { part = 'BARREL_SHORT' },
+        sight_improved = { part = 'SIGHT_IMPROVED' }, stock_improved = { part = 'STOCK_IMPROVED' }, rifling_improved = { part = 'RIFLING_IMPROVED' },
+        scope_short = { part = 'SCOPE_SHORT' }, scope_medium = { part = 'SCOPE_MEDIUM' }, scope_long = { part = 'SCOPE_LONG' },
+        finish_blued = { part = 'FINISH_BLUED' }, finish_nickel = { part = 'FINISH_NICKEL' }, finish_silver = { part = 'FINISH_SILVER' }, finish_gold = { part = 'FINISH_GOLD' },
+        engraving_simple = { part = 'ENGRAVING_SIMPLE' }, engraving_floral = { part = 'ENGRAVING_FLORAL' }, engraving_scroll = { part = 'ENGRAVING_SCROLL' },
+        wrap_leather = { part = 'WRAP_LEATHER' },
+    },
+    oneOfGroup = true,           -- one barrel, one grip, one finish… fitting replaces the group
 }
 
 -- ████████████████████████████████████████████████████████████████████████████████
--- ████████████████████████ WEAPON DURABILITY MULTIPLIERS █████████████████████████
+-- ████████████████████████ SECURITY ══════════════════════════════════════════════
 -- ████████████████████████████████████████████████████████████████████████████████
-
--- Controls how quickly each weapon degrades per bullet fired.
--- Lower value = slower degradation. Add any weapon hash to extend.
-
-Config.DurabilityMultiplier = {
-    -- Handguns
-    [`weapon_revolver_cattleman`]         = 0.15,
-    [`weapon_revolver_cattleman_mexican`] = 0.15,
-    [`weapon_revolver_doubleaction_gambler`] = 0.15,
-    [`weapon_revolver_schofield`]         = 0.15,
-    [`weapon_revolver_lemat`]             = 0.15,
-    [`weapon_revolver_navy`]              = 0.15,
-    [`weapon_pistol_volcanic`]            = 0.15,
-    [`weapon_pistol_m1899`]               = 0.15,
-    [`weapon_pistol_mauser`]              = 0.15,
-    [`weapon_pistol_semiauto`]            = 0.15,
-    [`weapon_repeater_carbine`]           = 0.15,
-    [`weapon_repeater_winchester`]        = 0.15,
-    [`weapon_repeater_henry`]             = 0.15,
-    [`weapon_repeater_evans`]             = 0.15,
-
-    -- Rifles
-    [`weapon_rifle_varmint`]              = 0.15,
-    [`weapon_rifle_springfield`]          = 0.15,
-    [`weapon_rifle_boltaction`]           = 0.15,
-    [`weapon_rifle_elephant`]             = 0.15,
-    [`weapon_sniperrifle_rollingblock`]   = 0.15,
-    [`weapon_sniperrifle_rollingblock_exotic`] = 0.15,
-    [`weapon_sniperrifle_carcano`]        = 0.15,
-
-    -- Shotguns
-    [`weapon_shotgun_doublebarrel`]       = 0.15,
-    [`weapon_shotgun_doublebarrel_exotic`] = 0.15,
-    [`weapon_shotgun_sawedoff`]           = 0.15,
-    [`weapon_shotgun_semiauto`]           = 0.15,
-
-    -- Bows
-    [`weapon_bow_improved`]               = 0.15,
-    [`weapon_bow`]                        = 0.15
+Config.Security = {
+    rateLimit = { windowMs = 2000, burst = 12 },
+    maxShotsPerReport = 40,      -- more than this in one report is a modified client
+    promptKey = 0xF3830D8E,      -- J
+    promptDistance = 2.5,
+    gunsmithDistance = 4.0,
 }
 
 -- ████████████████████████████████████████████████████████████████████████████████
--- ████████████████████████ END OF CONFIGURATION ██████████████████████████████████
+-- ████████████████████████ DEBUG ═════════════════════════════════════════════════
 -- ████████████████████████████████████████████████████████████████████████████████
-
--- Startup banner
-CreateThread(function()
-    Wait(1000)
-    print([[
-
-        ═══════════════════════════════════════════════════════════════════════════════
-
-            ██╗     ██╗  ██╗██████╗        ██╗    ██╗███████╗ █████╗ ██████╗  ██████╗ ███╗   ██╗███████╗
-            ██║     ╚██╗██╔╝██╔══██╗       ██║    ██║██╔════╝██╔══██╗██╔══██╗██╔═══██╗████╗  ██║██╔════╝
-            ██║      ╚███╔╝ ██████╔╝█████╗ ██║ █╗ ██║█████╗  ███████║██████╔╝██║   ██║██╔██╗ ██║███████╗
-            ██║      ██╔██╗ ██╔══██╗╚════╝ ██║███╗██║██╔══╝  ██╔══██║██╔═══╝ ██║   ██║██║╚██╗██║╚════██║
-            ███████╗██╔╝ ██╗██║  ██║       ╚███╔███╔╝███████╗██║  ██║██║     ╚██████╔╝██║ ╚████║███████║
-            ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝        ╚══╝╚══╝ ╚══════╝╚═╝  ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═══╝╚══════╝
-
-        ═══════════════════════════════════════════════════════════════════════════════
-        🐺 WEAPONS SYSTEM - SUCCESSFULLY LOADED
-        ═══════════════════════════════════════════════════════════════════════════════
-
-        Version:       1.0.2
-        Server:        ]] .. Config.ServerInfo.name .. [[
-
-        Framework:     Auto-detect enabled
-        Repair Points: ]] .. #Config.WeaponRepairPoints .. [[
-
-        Debug:         ]] .. (Config.Debug and 'ENABLED' or 'DISABLED') .. [[
-
-        ═══════════════════════════════════════════════════════════════════════════════
-
-        Developer:     iBoss21 / The Lux Empire
-        Website:       https://www.wolves.land
-        Discord:       https://discord.gg/CrKcWdfd3A
-
-        ═══════════════════════════════════════════════════════════════════════════════
-
-    ]])
-end)
+Config.Debug = { printBanner = true, log = false }

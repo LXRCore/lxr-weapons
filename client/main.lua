@@ -1,246 +1,276 @@
---[[
-    ██╗     ██╗  ██╗██████╗        ██╗    ██╗███████╗ █████╗ ██████╗  ██████╗ ███╗   ██╗███████╗
-    ██║     ╚██╗██╔╝██╔══██╗       ██║    ██║██╔════╝██╔══██╗██╔══██╗██╔═══██╗████╗  ██║██╔════╝
-    ██║      ╚███╔╝ ██████╔╝█████╗ ██║ █╗ ██║█████╗  ███████║██████╔╝██║   ██║██╔██╗ ██║███████╗
-    ██║      ██╔██╗ ██╔══██╗╚════╝ ██║███╗██║██╔══╝  ██╔══██║██╔═══╝ ██║   ██║██║╚██╗██║╚════██║
-    ███████╗██╔╝ ██╗██║  ██║       ╚███╔███╔╝███████╗██║  ██║██║     ╚██████╔╝██║ ╚████║███████║
-    ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝        ╚══╝╚══╝ ╚══════╝╚═╝  ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+--[[ ═══════════════════════════════════════════════════════════════════════════
+     LXR-WEAPONS — Client: the ped mirrors the server's loadout
+     ═══════════════════════════════════════════════════════════════════════════
+     Nothing here decides anything. The server says "carry this serial at
+     this attach point with this condition", the client gives it to the ped;
+     the server says "these pools", the client sets the ped's ammunition;
+     the ped's ammunition drops, the client reports the shots. One thread
+     runs only while something is carried; the gunsmith is prompts + NUI.
+     ═══════════════════════════════════════════════════════════════════════════
+     © 2026 iBoss21 / LXRCore — All Rights Reserved
+     ═══════════════════════════════════════════════════════════════════════════ ]]
 
-    🐺 LXR Weapons System — Client Script
+local LXRCore = exports['lxr-core']:GetCoreObject()
+local LXR = exports['lxr-core']:GetLXR()
+local W = LXRWeapons
+local N = Citizen.InvokeNative
 
-    ═══════════════════════════════════════════════════════════════════════════════
-    SERVER INFORMATION
-    ═══════════════════════════════════════════════════════════════════════════════
+local carried = {}      -- serial → { name, hash, attach, quality, components, inHand }
+local pools = {}        -- class item → rounds (server copy)
+local lastAmmo = {}     -- class item → rounds last seen on the ped
+local inHand = nil      -- serial currently in the hands
+local running = false
+local session = nil     -- gunsmith session { shop }
+local blips = {}
 
-    Server:    The Land of Wolves 🐺
-    Developer: iBoss21 / The Lux Empire
-    Website:   https://www.wolves.land
-    Discord:   https://discord.gg/CrKcWdfd3A
-    Store:     https://theluxempire.tebex.io
+local ADD_DEFAULT = joaat('ADD_REASON_DEFAULT')
+local REMOVE_DEFAULT = joaat('REMOVE_REASON_DEFAULT')
+local UNARMED = joaat('WEAPON_UNARMED')
 
-    ═══════════════════════════════════════════════════════════════════════════════
+local function ped() return PlayerPedId() end
+local function toast(key, kind, vars) LXRCore.Notify(Lang:t(key, vars), kind or 'info') end
 
-    © 2026 iBoss21 / The Lux Empire | wolves.land | All Rights Reserved
-]]
-
-
-local sharedWeapons = exports['lxr-core']:GetWeapons()
-local sharedItems = exports['lxr-core']:GetItems()
-local sid = GetPlayerServerId(PlayerId())
-local Weapons = {}
-
-----------------------------------------------------------------------------
----- FUNCTIONS
-----------------------------------------------------------------------------
-
-local function GetRepairCallBack(data)
-    exports['lxr-core']:TriggerCallback('lxr-weapons:server:RepairWeapon', function(CanRepair)
-        if CanRepair then
-            curWeapData = nil
-        end
-    end, data)
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- 🔫 GIVE / TAKE
+-- ═══════════════════════════════════════════════════════════════════════════════
+local function weaponObject(attach)
+    local obj = GetCurrentPedWeaponEntityIndex(ped(), attach)
+    if obj and obj ~= 0 then return obj end
 end
 
-local function OpenMenu(index)
-    local data = Config.WeaponRepairPoints[index]
-    local RepairMenu = {}
-    if data.IsRepairing and data.IsRepairing.Ready then
-        RepairMenu[#RepairMenu+1] = {
-            header = "Pickup Repaired Weapon",
-            txt = "Description: "..sharedItems[data.IsRepairing.WeaponData.name]['label'],
-            params = {
-                isServer = true,
-                event = "lxr-weapons:server:TakeBackWeapon",
-                args = {index = index}
-            }
-        }
-    elseif not data.IsRepairing and curWeapData and next(curWeapData) then
-        local WeaponData = sharedWeapons[joaat(curWeapData.name)]
-        local WeaponClass = WeaponData.ammotype and string.match(WeaponData.ammotype, "_(.+)"):lower()
-        if not WeaponClass then return end
-        RepairMenu[#RepairMenu+1] = {
-            header = "Repair Weapon",
-            txt = "Weapon: "..sharedItems[curWeapData.name]['label'].." Price: "..Config.WeaponRepairCosts[WeaponClass],
-            params = {
-                isAction = true,
-                event = GetRepairCallBack,
-                args = {index = index, slot = curWeapData.slot}
-            }
-        }
-    else
-        exports['lxr-core']:Notify(9, Lang:t('error.no_weapon_in_hand'), 5000, 0, 'mp_lobby_textures', 'cross', 'COLOR_WHITE')
+local function applyCondition(e)
+    if not e then return end
+    local obj = weaponObject(e.attach)
+    if obj then SetWeaponDegradation(obj, 1.0 - (e.quality or 100) / 100) end
+end
+
+local function applyComponents(e)
+    local rec = W.Record(e.name)
+    if not rec then return end
+    for _, key in ipairs(e.components or {}) do
+        GiveWeaponComponentToEntity(ped(), joaat(W.ComponentName(rec, key)), e.hash, true)
     end
-    exports['lxr-menu']:openMenu(RepairMenu)
 end
 
-local function ResetWeapons()
-    local ped = PlayerPedId()
-    RemoveAllPedWeapons(ped, true, true)
-    Weapons = {}
-    local pistols = 1
-    Wait(250)
-    local slots = exports['lxr-inventory']:GetSlotData(1, 5)
-    for i=1, 5 do
-        local weapon = slots[i]
-        if weapon and string.find(weapon.name, 'weapon') then
-            if weapon.info and weapon.info ~= "" then
-                local hash = joaat(weapon.name)
-                weapon.info.ammo = weapon.info.ammo or 0
-                Weapons[hash] = weapon
-                local group = GetWeapontypeGroup(hash)
-                if group == `group_revolver` or group == `group_pistol` then
-                    pistols += 1
-                    GiveWeaponToPed_2(ped, hash, 0, false, true, pistols)
-                else
-                    GiveWeaponToPed_2(ped, hash, 0, false, true)
-                end
+local function setPoolsOnPed()
+    local p = ped()
+    for class, c in pairs(LXRShared.AmmoClasses) do
+        local n = tonumber(pools[class]) or 0
+        SetPedAmmoByType(p, c.hash, n)
+        lastAmmo[class] = n
+    end
+end
+
+local function give(d)
+    local p = ped()
+    if not HasWeaponAssetLoaded(d.hash) then
+        RequestWeaponAsset(d.hash, 31, 0)
+        local t = GetGameTimer() + 3000
+        while not HasWeaponAssetLoaded(d.hash) and GetGameTimer() < t do Wait(10) end
+    end
+    GiveWeaponToPed(p, d.hash, 0, d.inHand == true, d.inHand ~= true, d.attach, false, 0.5, 1.0, ADD_DEFAULT, true, 0.0, false)
+    carried[d.serial] = { name = d.name, hash = d.hash, attach = d.attach, quality = d.quality or 100, components = d.components or {}, inHand = d.inHand }
+    if Config.Wield.dual then SetAllowDualWield(p, true) end
+    Wait(50)
+    setPoolsOnPed()
+    applyComponents(carried[d.serial])
+    applyCondition(carried[d.serial])
+    if d.inHand then inHand = d.serial end
+    running = true
+end
+
+local function take(d)
+    local p = ped()
+    local e = carried[d.serial]
+    carried[d.serial] = nil
+    if inHand == d.serial then inHand = nil end
+    if e and HasPedGotWeapon(p, e.hash, 0, false) then
+        RemoveWeaponFromPed(p, e.hash, true, REMOVE_DEFAULT)
+        -- a twin of the same model stays: give it back
+        for _, other in pairs(carried) do
+            if other.hash == e.hash then
+                GiveWeaponToPed(p, other.hash, 0, false, true, other.attach, false, 0.5, 1.0, ADD_DEFAULT, true, 0.0, false)
+                Wait(50)
+                applyComponents(other) applyCondition(other)
             end
         end
     end
+    if d.reason == 'death' or d.reason == 'disarm' then
+        -- nothing to say, the server already did
+    elseif d.reason == 'holster' then toast('info.holstered', 'info', { label = e and (LXRShared.Items[e.name] or {}).label or '' })
+    end
 end
 
-----------------------------------------------------------------------------
----- EVENTS & HANDLERS
-----------------------------------------------------------------------------
-
-AddStateBagChangeHandler('WeaponRepairPoints', 'global', function(_, _, value)
-    Config.WeaponRepairPoints = value
+RegisterNetEvent('lxr-weapons:client:give', function(d) give(d) end)
+RegisterNetEvent('lxr-weapons:client:take', function(d) take(d) end)
+RegisterNetEvent('lxr-weapons:client:ammo', function(a) pools = a or {} setPoolsOnPed() end)
+RegisterNetEvent('lxr-weapons:client:condition', function(serial, q)
+    local e = carried[serial]
+    if not e then return end
+    e.quality = q
+    applyCondition(e)
+end)
+RegisterNetEvent('lxr-weapons:client:components', function(serial, hash, list)
+    local e = carried[serial]
+    if not e then return end
+    local rec = W.Record(e.name)
+    for _, key in ipairs(e.components or {}) do RemoveWeaponComponentFromPed(ped(), joaat(W.ComponentName(rec, key)), hash) end
+    e.components = list or {}
+    applyComponents(e)
 end)
 
-AddStateBagChangeHandler('isLoggedIn', ('player:%s'):format(sid), function(_, _, value)
-    if not value then return end
-    local ped = PlayerPedId()
-    SetPedConfigFlag(ped, 334, true) -- Quick Aim Disable
-    SetPedConfigFlag(ped, 20, true) -- Quick Aim Disable
-    SetPedConfigFlag(ped, 263, true) -- Disable Critical Damage
-    SetPedConfigFlag(ped, 445, true) -- Disable Door Ramming
-    SetPedConfigFlag(ped, 40, true) -- Allow Attacking
-    SetPedConfigFlag(ped, 305, true) -- Disable Head Gore
-    Citizen.InvokeNative(0x1B83C0DEEBCBB214, ped) -- RemoveAllPedAmmo
-    ResetWeapons()
-end)
-
-RegisterNetEvent('lxr-weapons:client:CheckWeapon', ResetWeapons)
-
-RegisterNetEvent('lxr-weapons:client:UseWeapon', function(weaponData, Inspect)
-    local ped = PlayerPedId()
-    local hash = joaat(weaponData.name)
-    local weaponName = tostring(weaponData.name)
-    local weapon = Citizen.InvokeNative(0x8425C5F057012DAB, ped) -- GetPedCurrentHeldWeapon
-    local current = weapon ~= `WEAPON_UNARMED` and weapon
-    local group = GetWeapontypeGroup(hash)
-    if current and current == hash then
-        if Inspect then return end
-        SetCurrentPedWeapon(ped, `WEAPON_UNARMED`, true)
-    elseif current and current ~= hash then
-        Citizen.InvokeNative(0x1B83C0DEEBCBB214, ped)
-        SetCurrentPedWeapon(ped, `WEAPON_UNARMED`, true)
-        if string.find(weaponName, 'thrown') then
-			Citizen.InvokeNative(0x106A811C6D3035F3, ped, Citizen.InvokeNative(0x5C2EA6C44F515F34, hash), 1, 752097756) -- AddAmmoToPedByType
-            TriggerServerEvent('lxr-weapons:server:UsedThrowable', weaponName, weaponData.slot)
-        end
-        Wait(500)
-        if group == `GROUP_REVOLVER` or group == `GROUP_PISTOL` then
-            SetCurrentPedWeapon(ped, hash, true)
-            SetAmmoInClip(ped, hash, weaponData.info.ammo or 0)
-        else
-            SetPedAmmo(ped, hash, weaponData.info.ammo or 0)
-            Citizen.InvokeNative(0xB282DC6EBD803C75, ped, hash)  --GiveDelayedWeaponToPed
-            SetCurrentPedWeapon(ped, hash, true)
-        end
-    else
-        Citizen.InvokeNative(0x1B83C0DEEBCBB214, ped)
-        if string.find(weaponName, 'thrown') then
-			Citizen.InvokeNative(0x106A811C6D3035F3, ped, Citizen.InvokeNative(0x5C2EA6C44F515F34, hash), 1, 752097756) -- AddAmmoToPedByType
-            TriggerServerEvent('lxr-weapons:server:UsedThrowable', weaponName, weaponData.slot)
-        end
-        Wait(100)
-        if group == `GROUP_REVOLVER` or group == `GROUP_PISTOL` then
-            SetCurrentPedWeapon(ped, hash, true)
-            SetAmmoInClip(ped, hash, weaponData.info.ammo or 0)
-        else
-            SetPedAmmo(ped, hash, weaponData.info.ammo or 0)
-            Citizen.InvokeNative(0xB282DC6EBD803C75, ped, hash)  --GiveDelayedWeaponToPed
-            SetCurrentPedWeapon(ped, hash, true)
-        end
+-- the satchel lost a weapon item (lxr-inventory tells us by name); the server confirms by serial
+RegisterNetEvent('lxr-weapons:client:removed', function(name)
+    for serial, e in pairs(carried) do
+        if e.name == name then TriggerServerEvent('lxr-weapons:server:gone', serial) end
     end
 end)
 
-RegisterNetEvent('lxr-weapons:client:AddAmmo', function(atype, amount, itemData)
-    local ped = PlayerPedId()
-    local weapon = atype ~= 'AMMO_ARROW' and Citizen.InvokeNative(0x8425C5F057012DAB,ped) or Citizen.InvokeNative(0xDBC4B552B2AE9A83, ped, joaat('slot_bow'))
-    if Citizen.InvokeNative(0x5C2EA6C44F515F34, weapon) == joaat(atype) then
-        local total = GetAmmoInPedWeapon(ped, weapon)
-        if total <= 1 then
-            local maxammo = Config.MaxAmmo[GetWeapontypeGroup(weapon)] or 12
-            exports['lxr-core']:Progressbar("taking_bullets", Lang:t('info.loading_bullets'), math.random(4000, 6000), false, true, {
-                disableCombat = true,
-            }, {}, {}, {}, function() -- Done
-                local weaponData = Weapons[weapon]
-                if weaponData then
-                    if weaponData.info?.quality <= 0 then
-                        return  exports['lxr-core']:Notify(9, 'Cannot Reload Broken Weapon', 5000, 0, 'mp_lobby_textures', 'cross', 'COLOR_WHITE')
-                    end
-                    if atype == 'AMMO_ARROW' then
-                        SetPedAmmo(ped, weapon, maxammo)
-                        SetCurrentPedWeapon(ped, weapon, true)
-                    else
-                        if atype == 'AMMO_REVOLVER' or atype == 'AMMO_PISTOL' then
-                            SetAmmoInClip(ped, weapon, maxammo)
-                        else
-                            SetPedAmmo(ped, weapon, maxammo)
-                        end
-                        TaskReloadWeapon(ped)
-                    end
-                    TriggerServerEvent('LXRCore:Server:RemoveItem', itemData.name, 1, itemData.slot)
-                    TriggerEvent('inventory:client:ItemBox', itemData.name, "remove")
-                end
-            end, function()
-                exports['lxr-core']:Notify(9, Lang:t('error.canceled'), 5000, 0, 'mp_lobby_textures', 'cross', 'COLOR_WHITE')
-            end)
-        else
-            exports['lxr-core']:Notify(9, Lang:t('error.max_ammo'), 5000, 0, 'mp_lobby_textures', 'cross', 'COLOR_WHITE')
-        end
-    else
-        exports['lxr-core']:Notify(9, Lang:t('error.no_weapon'), 5000, 0, 'mp_lobby_textures', 'cross', 'COLOR_WHITE')
-    end
+-- field care: progress while holding the gun, then the server applies it
+RegisterNetEvent('lxr-weapons:client:care', function(d)
+    if exports['lxr-nui']:IsProgressActive() then return end
+    local done = nil
+    exports['lxr-nui']:Progress({ label = Lang:t('ui.caring', { label = d.label }), duration = d.ms, canCancel = true }, function(ok) done = ok end)
+    while done == nil do Wait(50) end
+    if done then TriggerServerEvent('lxr-weapons:server:cared', d.item, d.serial) end
 end)
 
-----------------------------------------------------------------------------
----- THREADS
-----------------------------------------------------------------------------
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- 🔁 THE ONE THREAD — hands, shots, jams. Runs only while something is carried.
+-- ═══════════════════════════════════════════════════════════════════════════════
+local function serialInHand()
+    local ok, hash = GetCurrentPedWeapon(ped(), true, 0, false)
+    if not ok or not hash or hash == UNARMED then return nil end
+    local pick
+    for serial, e in pairs(carried) do
+        if e.hash == hash then
+            if serial == inHand then return serial end
+            pick = pick or serial
+        end
+    end
+    return pick
+end
+
+local function reportShots()
+    local p = ped()
+    local fired = {}
+    for class, c in pairs(LXRShared.AmmoClasses) do
+        local n = GetPedAmmoByType(p, c.hash)
+        local last = lastAmmo[class] or 0
+        if n < last then fired[class] = last - n
+        elseif n > last and n > (tonumber(pools[class]) or 0) then
+            -- the ped gained rounds the server never gave: put it back
+            SetPedAmmoByType(p, c.hash, tonumber(pools[class]) or 0)
+            n = tonumber(pools[class]) or 0
+        end
+        lastAmmo[class] = n
+    end
+    if not next(fired) then return end
+    for class, n in pairs(fired) do
+        pools[class] = math.max(0, (tonumber(pools[class]) or 0) - n)
+        local serial = inHand
+        if not serial then
+            for s, e in pairs(carried) do local rec = W.Record(e.name) if rec and W.Chambers(rec, class) then serial = s break end end
+        end
+        if serial then TriggerServerEvent('lxr-weapons:server:shots', serial, n, class) end
+    end
+end
 
 CreateThread(function()
-    SetWeaponsNoAutoswap(true)
+    local nextReport = 0
     while true do
-        local ped = PlayerPedId()
-        local holdingweap = Citizen.InvokeNative(0x8425C5F057012DAB,ped) -- GetPedCurrentHeldWeapon
-        local weapon = Weapons[holdingweap]
-        if weapon then
-            local IsGun = Citizen.InvokeNative(0x705BE297EEBDB95D, holdingweap) -- IsWeaponAGun
-            if IsGun then
-                local currentammo = GetAmmoInPedWeapon(ped, holdingweap)
-                if currentammo ~= weapon.info.ammo then
-                    local diff = weapon.info.ammo - currentammo
-                    weapon.info.ammo = currentammo
-                    local DecreaseAmount = Config.DurabilityMultiplier[holdingweap] * diff
-					if weapon.info?.quality then 
-                        Weapons[holdingweap].info.quality = weapon.info.quality - DecreaseAmount 
-                    end
-                    TriggerServerEvent('lxr-weapons:server:UpdateWeaponData', weapon.slot, currentammo, DecreaseAmount > 0 and DecreaseAmount)
+        if not running then Wait(500) else
+            if not next(carried) then running = false else
+                local now = GetGameTimer()
+                local s = serialInHand()
+                if s ~= inHand then
+                    inHand = s
+                    for serial, e in pairs(carried) do e.inHand = (serial == s) end
+                    TriggerServerEvent('lxr-weapons:server:inHand', s)
                 end
+                local e = s and carried[s]
+                if e and W.Jammed(e.quality) then
+                    DisableControlAction(0, 0x07CE1E61, true) -- attack
+                    DisableControlAction(0, 0xF84FA74F, true) -- aim
+                    Wait(0)
+                else
+                    Wait(150)
+                end
+                if now >= nextReport then nextReport = now + Config.Condition.reportEveryMs reportShots() end
             end
         end
-        Wait(1000)
     end
 end)
 
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- 🔨 GUNSMITH — prompts, blips, NUI
+-- ═══════════════════════════════════════════════════════════════════════════════
+local function close()
+    if not session then return end
+    session = nil
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'close' })
+end
+
+local function open(shop)
+    if session then return end
+    local ok, data, bundle, brand = LXR.RPC.Server('lxr-weapons:gunsmith:open', shop.id)
+    if not ok then return toast('error.' .. tostring(data), 'error') end
+    session = { shop = shop }
+    SetNuiFocus(true, true)
+    SendNUIMessage({ action = 'open', data = data, locale = bundle, brand = brand or LXRCore.Brand, lang = Config.Lang })
+end
+
+local function rpc(name, ...)
+    if not session then return { ok = false } end
+    local ok, res, extra = LXR.RPC.Server(name, session.shop.id, ...)
+    if not ok then
+        toast('error.' .. tostring(res), 'error', { amount = extra })
+        return { ok = false, why = res }
+    end
+    return { ok = true, data = res, amount = extra }
+end
+
+RegisterNUICallback('close', function(_, cb) close() cb({ ok = true }) end)
+RegisterNUICallback('repair', function(d, cb) local r = rpc('lxr-weapons:gunsmith:repair', d.serial) if r.ok then toast('info.paid', 'success', { amount = r.amount }) end cb(r) end)
+RegisterNUICallback('fit', function(d, cb) local r = rpc('lxr-weapons:gunsmith:fit', d.serial, d.key) if r.ok then toast('info.paid', 'success', { amount = r.amount }) end cb(r) end)
+RegisterNUICallback('strip', function(d, cb) local r = rpc('lxr-weapons:gunsmith:strip', d.serial, d.key) if r.ok then toast('info.paid', 'success', { amount = r.amount }) end cb(r) end)
+RegisterNUICallback('unload', function(d, cb) local r = rpc('lxr-weapons:gunsmith:unload', d.class) if r.ok then toast('info.unloaded', 'success', { n = r.amount }) end cb(r) end)
+RegisterNUICallback('sound', function(d, cb) PlaySoundFrontend(d.name or 'NAV_UP', d.set or 'HUD_SHOP_SOUNDSET', true, 0) cb({}) end)
+
 CreateThread(function()
-    for k, v in pairs(Config.WeaponRepairPoints) do
-        exports['lxr-core']:createPrompt("weapons:repair"..k, v.coords, 0xCEFD9220, Lang:t('info.repair_button'), {
-            type = 'callback',
-            event = OpenMenu,
-            args = {k},
-        })
+    for _, s in ipairs(Config.Gunsmiths) do
+        LXRCore.Prompts.Create('lxr-weapons:' .. s.id, s.coords, Config.Security.promptKey, Lang:t('prompt.gunsmith', { name = s.label }),
+            { type = 'callback', event = function() open(s) end }, Config.Security.promptDistance, nil, 0)
+        if s.blip then
+            local blip = N(0x554D9D53F696D002, 1664425300, s.coords.x, s.coords.y, s.coords.z)
+            if blip and blip ~= 0 then
+                N(0x74F74D3207ED525C, blip, joaat('blip_shop_gunsmith'), true)
+                N(0x9CB1A1623062F402, blip, s.label)
+                if GetResourceState('lxr-mapcolor') == 'started' then pcall(function() N(0x662D364ABF16DE2F, blip, exports['lxr-mapcolor']:modifier()) end) end
+                blips[#blips + 1] = blip
+            end
+        end
     end
 end)
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- 🔌 LIFECYCLE
+-- ═══════════════════════════════════════════════════════════════════════════════
+local function hello()
+    carried = {} inHand = nil lastAmmo = {}
+    TriggerServerEvent('lxr-weapons:server:ready')
+end
+RegisterNetEvent('lxr:client:loaded', hello)
+RegisterNetEvent('lxr:client:unloaded', function() carried = {} inHand = nil running = false close() end)
+AddEventHandler('onResourceStart', function(res) if res == GetCurrentResourceName() and LocalPlayer.state.isLoggedIn then hello() end end)
+AddEventHandler('onResourceStop', function(res)
+    if res ~= GetCurrentResourceName() then return end
+    for _, b in ipairs(blips) do RemoveBlip(b) end
+    close()
+end)
+
+exports('GetDrawn', function() return inHand and carried[inHand] and carried[inHand].name or nil end)
+exports('IsArmed', function() return next(carried) ~= nil end)
+exports('Carried', function() return carried end)
+exports('OpenGunsmith', function(id) for _, s in ipairs(Config.Gunsmiths) do if s.id == id then open(s) end end end)

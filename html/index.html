@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!-- LXR-WEAPONS | LXR UI Kit | © 2026 iBoss21 / LXRCore | lxrcore.com -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Gunsmith</title>
+  <link rel="stylesheet" href="lxr-ui.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="lxr">
+  <div id="app" class="lxr-hidden">
+    <header class="gs-top lxr-hit">
+      <div class="gs-brand">
+        <img class="gs-logo" src="img/lxrcore-logo.png" alt="">
+        <div><span class="lxr-mono lxr-t-ash" data-l="gunsmith"></span><h1 class="lxr-cut gs-title" id="shop-label"></h1></div>
+      </div>
+      <div class="gs-hints lxr-mono lxr-t-smoke"><span class="lxr-key">Backspace</span><span data-l="hint_close"></span></div>
+    </header>
+
+    <aside class="gs-list lxr-hit">
+      <div class="gs-list__head lxr-rule-b"><span class="lxr-mono lxr-t-ash" data-l="weapons"></span><span class="lxr-grow"></span><span class="lxr-mono lxr-t-smoke" id="count"></span></div>
+      <div class="gs-rows" id="rows"></div>
+      <div class="gs-ammo">
+        <div class="gs-list__head lxr-rule-b"><span class="lxr-mono lxr-t-ash" data-l="ammo"></span></div>
+        <div id="ammo"></div>
+      </div>
+    </aside>
+
+    <section class="gs-detail lxr-hit" id="detail"></section>
+
+    <footer class="gs-foot lxr-hit">
+      <span class="lxr-mono lxr-t-smoke"><span data-l="cash"></span> $<span id="cash">0.00</span></span>
+      <span class="lxr-grow"></span>
+      <button class="lxr-btn lxr-btn-ghost" id="btn-close" data-l="close"></button>
+    </footer>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
