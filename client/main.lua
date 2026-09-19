@@ -240,8 +240,7 @@ RegisterNUICallback('sound', function(d, cb) PlaySoundFrontend(d.name or 'NAV_UP
 
 CreateThread(function()
     for _, s in ipairs(Config.Gunsmiths) do
-        LXRCore.Prompts.Create('lxr-weapons:' .. s.id, s.coords, Config.Security.promptKey, Lang:t('prompt.gunsmith', { name = s.label }),
-            { type = 'callback', event = function() open(s) end }, Config.Security.promptDistance, nil, 0)
+        LXRCore.Functions.Door('lxr-weapons:' .. s.id, s.coords, { label = Lang:t('prompt.gunsmith', { name = s.label }), action = Lang:t('prompt.open'), distance = Config.Security.promptDistance, control = Config.Security.promptKey }, function() open(s) end)
         if s.blip then
             local blip = N(0x554D9D53F696D002, 1664425300, s.coords.x, s.coords.y, s.coords.z)
             if blip and blip ~= 0 then

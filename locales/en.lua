@@ -5,7 +5,7 @@
      ═══════════════════════════════════════════════════════════════════════════ ]]
 
 Locale.Register('en', {
-    prompt = { gunsmith = '%{name}' },
+    prompt = { open = 'Open', gunsmith = '%{name}' },
     error = {
         not_yours = 'That gun is not in your satchel.', too_many = 'You are carrying enough of those.', no_dual = 'That gun cannot be paired.',
         no_holster = 'No free holster for that.', pool_full = 'You cannot carry more %{label}.', nothing_in_hand = 'Hold the weapon you want to tend.',
