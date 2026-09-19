@@ -30,6 +30,21 @@ local UNARMED = joaat('WEAPON_UNARMED')
 local function ped() return PlayerPedId() end
 local function toast(key, kind, vars) LXRCore.Notify(Lang:t(key, vars), kind or 'info') end
 
+-- the inspection dictionary for a carried gun (by the core record's category)
+local function inspectDict(e)
+    local rec = e and W.Record(e.name)
+    return rec and Config.Inspect.dicts[rec.category] or nil
+end
+local function loadDict(dict)
+    if not dict then return false end
+    if HasAnimDictLoaded(dict) then return true end
+    RequestAnimDict(dict)
+    local t = GetGameTimer() + 2000
+    while not HasAnimDictLoaded(dict) and GetGameTimer() < t do Wait(10) end
+    return HasAnimDictLoaded(dict)
+end
+
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- 🔫 GIVE / TAKE
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -174,14 +189,54 @@ end)
 RegisterNetEvent('lxr-weapons:client:care', function(d)
     if exports['lxr-nui']:IsProgressActive() then return end
     local done = nil
+    local dict = inspectDict(carried[d.serial])
+    if loadDict(dict) then TaskPlayAnim(ped(), dict, 'clean_loop', 4.0, -4.0, -1, 1, 0.0, false, false, false) end
     exports['lxr-nui']:Progress({ label = Lang:t('ui.caring', { label = d.label }), duration = d.ms, canCancel = true }, function(ok) done = ok end)
     while done == nil do Wait(50) end
+    ClearPedTasks(ped())
+    if dict then RemoveAnimDict(dict) end
     if done then TriggerServerEvent('lxr-weapons:server:cared', d.item, d.serial) end
 end)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- 🔁 THE ONE THREAD — hands, shots, jams. Runs only while something is carried.
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- damage modifiers follow the gun in hand (Config.Combat.damage)
+local function applyDamage(e)
+    local rec = e and W.Record(e.name)
+    local d = Config.Combat.damage
+    local mult = rec and (d.byCategory[rec.category] or d.ranged) or d.ranged
+    SetPlayerWeaponDamageModifier(PlayerId(), mult + 0.0)
+    SetPlayerMeleeWeaponDamageModifier(PlayerId(), (d.melee or 1.0) + 0.0)
+end
+local infinite = false
+RegisterNetEvent('lxr-weapons:client:infiniteAmmo', function()
+    infinite = not infinite
+    SetPedInfiniteAmmoClip(ped(), infinite)
+    toast(infinite and 'info.infinite_on' or 'info.infinite_off', 'info')
+end)
+
+-- /inspect: turn the gun in the hands
+local inspecting = false
+local function inspect()
+    if inspecting then return end
+    local e = inHand and carried[inHand]
+    local dict = inspectDict(e)
+    if not dict then return toast('error.nothing_to_inspect', 'error') end
+    if not loadDict(dict) then return end
+    inspecting = true
+    local p = ped()
+    TaskPlayAnim(p, dict, 'base_enter', 4.0, -4.0, -1, 0, 0.0, false, false, false)
+    Wait(900)
+    TaskPlayAnim(p, dict, 'base_sweep', 4.0, -4.0, -1, 0, 0.0, false, false, false)
+    Wait(2600)
+    TaskPlayAnim(p, dict, 'base_exit', 4.0, -4.0, -1, 0, 0.0, false, false, false)
+    Wait(800)
+    RemoveAnimDict(dict)
+    inspecting = false
+end
+RegisterCommand(Config.Inspect.command or 'inspect', function() CreateThread(inspect) end, false)
+
 local function serialInHand()
     local ok, hash = GetCurrentPedWeapon(ped(), true, 0, false)
     if not ok or not hash or hash == UNARMED then return nil end
@@ -222,6 +277,7 @@ end
 
 CreateThread(function()
     local nextReport = 0
+    local lastHand = false
     while true do
         if not running then Wait(500) else
             if not next(carried) then running = false else
@@ -233,9 +289,13 @@ CreateThread(function()
                     TriggerServerEvent('lxr-weapons:server:inHand', s)
                 end
                 local e = s and carried[s]
+                if s ~= lastHand then lastHand = s applyDamage(e) end
                 if e and W.Jammed(e.quality) then
                     DisableControlAction(0, 0x07CE1E61, true) -- attack
                     DisableControlAction(0, 0xF84FA74F, true) -- aim
+                    Wait(0)
+                elseif e and Config.Combat.noSprintWhileAiming and IsPlayerFreeAiming(PlayerId()) then
+                    DisableControlAction(0, 0x8FFC75D6, true) -- sprint, only while aiming
                     Wait(0)
                 else
                     Wait(150)
@@ -249,11 +309,66 @@ end)
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- 🔨 GUNSMITH — prompts, blips, NUI
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- the counter camera: one scripted cam on the hands; the page nudges it (drag turns the ped, wheel zooms, W/S height)
+local cam = nil
+local camState = { fov = 28.0, h = 0.0 }
+local function camUpdate()
+    local C = Config.GunsmithCamera
+    local p = ped()
+    local pos = GetOffsetFromEntityInWorldCoords(p, C.offset.x, C.offset.y, C.offset.z + camState.h)
+    local look = GetOffsetFromEntityInWorldCoords(p, C.look.x, C.look.y, C.look.z + camState.h)
+    if not cam then
+        cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+        SetCamCoord(cam, pos.x, pos.y, pos.z)
+        PointCamAtCoord(cam, look.x, look.y, look.z)
+        SetCamFov(cam, camState.fov)
+        SetCamActive(cam, true)
+        RenderScriptCams(true, true, C.transitionMs or 400, true, true)
+    else
+        SetCamCoord(cam, pos.x, pos.y, pos.z)
+        PointCamAtCoord(cam, look.x, look.y, look.z)
+        SetCamFov(cam, camState.fov)
+    end
+end
+local function camOff()
+    if not cam then return end
+    RenderScriptCams(false, true, Config.GunsmithCamera.transitionMs or 400, true, true)
+    DestroyCam(cam, false) cam = nil
+end
+-- hold the selected gun up for the camera (only a carried gun can be shown)
+local shownDict = nil
+local function showGun(serial)
+    local e = serial and carried[serial]
+    local p = ped()
+    if shownDict then ClearPedTasks(p) RemoveAnimDict(shownDict) shownDict = nil end
+    if not e then return end
+    SetCurrentPedWeapon(p, e.hash, true)
+    local dict = inspectDict(e)
+    if loadDict(dict) then
+        TaskPlayAnim(p, dict, 'base_enter', 4.0, -4.0, -1, 0, 0.0, false, false, false)
+        shownDict = dict
+        SetTimeout(900, function() if shownDict == dict and session then TaskPlayAnim(p, dict, 'base_idle_pose', 4.0, -4.0, -1, 1, 0.0, false, false, false) end end)
+    end
+end
+RegisterNUICallback('show', function(d, cb) if session then showGun(d.serial) end cb({}) end)
+RegisterNUICallback('nudge', function(d, cb)
+    if not session or not cam then return cb({}) end
+    local C = Config.GunsmithCamera
+    local p = ped()
+    if d.turn then SetEntityHeading(p, (GetEntityHeading(p) + (tonumber(d.turn) or 0)) % 360) end
+    if d.zoom then camState.fov = math.max(C.fovRange[1], math.min(C.fovRange[2], camState.fov - (tonumber(d.zoom) or 0) * 3.0)) end
+    if d.height then camState.h = math.max(C.heightRange[1], math.min(C.heightRange[2], camState.h + (tonumber(d.height) or 0) * 0.05)) end
+    camUpdate()
+    cb({})
+end)
+
 local function close()
     if not session then return end
     session = nil
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'close' })
+    showGun(nil)
+    camOff()
 end
 
 local function open(shop)
@@ -263,6 +378,11 @@ local function open(shop)
     session = { shop = shop }
     SetNuiFocus(true, true)
     SendNUIMessage({ action = 'open', data = data, locale = bundle, brand = brand or LXRCore.Brand, lang = Config.Lang })
+    if Config.GunsmithCamera.enabled then
+        camState = { fov = Config.GunsmithCamera.fov, h = 0.0 }
+        camUpdate()
+        if data.weapons and data.weapons[1] then showGun(data.weapons[1].serial) end
+    end
 end
 
 local function rpc(name, ...)

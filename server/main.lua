@@ -336,8 +336,14 @@ end
 LXR.RPC.Register('lxr-weapons:gunsmith:open', function(src, shopId)
     if limited(src) then return false, 'rate' end
     local shop = shopFor(shopId)
-    if not player(src) or not shop then return false, 'invalid' end
+    local P = player(src)
+    if not P or not shop then return false, 'invalid' end
     if not near(src, shop.coords, Config.Security.gunsmithDistance) then return false, 'too_far' end
+    if type(shop.jobs) == 'table' then   -- a counter kept for a trade
+        local job = P.PlayerData.job or {}
+        local need = shop.jobs[job.name]
+        if need == nil or (tonumber(need) or 0) > ((job.grade and job.grade.level) or 0) then return false, 'no_permission' end
+    end
     return true, panel(src, shop), Lang.bundle(), LXRCore.Brand
 end)
 
@@ -444,6 +450,14 @@ exports('Disarm', disarm)
 exports('Holster', function(src, serial) takeBack(src, serial, 'holster') end)
 exports('GetAmmo', function(src, class) local P = player(src) return P and (tonumber(pools(P)[class]) or 0) or 0 end)
 exports('AddAmmo', addAmmo)
+
+-- /infiniteammo — the admin's endless clip (a toggle on the client, logged)
+if Config.Combat.infiniteAmmo then
+    LXRCore.Commands.Add('infiniteammo', Lang:t('command.infiniteammo'), {}, false, function(src)
+        TriggerClientEvent('lxr-weapons:client:infiniteAmmo', src)
+        log('infinite ammo toggled', { source = src })
+    end, Config.Combat.infiniteAmmo)
+end
 exports('SetQuality', function(src, serial, q)
     local slot, it = slotBySerial(src, serial)
     if not slot then return false end

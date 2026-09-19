@@ -30,6 +30,8 @@ nothing here is a second list to keep in step.
 * **Field care** — with the gun in hand, a cleaning kit restores 60, gun oil
   20, a whetstone 50 on blades and bows. Durable tools wear instead of
   vanishing; kits are consumed.
+* **In the hands** — `/inspect` turns the gun over (the game's inspection animations per category); at the gunsmith the selected gun is held up in front of a camera you drag, wheel-zoom and raise with W/S; field care plays the cleaning loop.
+* **Combat** — `Config.Combat`: damage modifier per category and melee, no sprint while aiming, `/infiniteammo` (admin).
 * **Gunsmith** — five counters. Repair priced on the item's ledger value and
   how much is missing; parts from `LXRShared.WeaponComponents` (one per
   group, only what the record allows, stat changes drawn on the card);

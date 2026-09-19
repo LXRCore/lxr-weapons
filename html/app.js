@@ -32,7 +32,7 @@
     D.weapons.forEach((w, i) => {
       const row = document.createElement('button'); row.className = 'lxr-row lxr-row--compact' + (sel === w.serial ? ' is-active' : '');
       row.innerHTML = `<span class="lxr-row-index">${String(i + 1).padStart(2, '0')}</span><span class="lxr-row-body"><span class="lxr-row-name">${esc(w.label)}</span><span class="lxr-row-sub">${esc(w.categoryLabel || w.category)}${w.drawn ? ' · ' + esc(t('ui.drawn')) : ''}</span></span><span class="lxr-grow"></span><span class="gs-row-cond"><span class="lxr-meter"><span class="lxr-meter-fill ${condClass(w.quality)}" style="width:${Math.max(0, Math.min(100, w.quality))}%"></span></span></span>`;
-      row.addEventListener('click', () => { sel = w.serial; sound('NAV_UP'); renderRows(); renderDetail(); });
+      row.addEventListener('click', () => { sel = w.serial; sound('NAV_UP'); renderRows(); renderDetail(); post('show', { serial: w.serial }); });
       host.appendChild(row);
     });
   }
@@ -116,7 +116,26 @@
   }
 
   $('btn-close').addEventListener('click', () => post('close'));
-  document.addEventListener('keydown', (e) => { if (D && (e.key === 'Backspace' || e.key === 'Escape') && e.target.type !== 'text') post('close'); });
+  document.addEventListener('keydown', (e) => {
+    if (!D) return;
+    if ((e.key === 'Backspace' || e.key === 'Escape') && e.target.type !== 'text') return post('close');
+    if (e.target.tagName === 'INPUT') return;
+    const k = e.key.toLowerCase();
+    if (k === 'q' || k === 'a' || k === 'arrowleft') post('nudge', { turn: -15 });
+    else if (k === 'e' || k === 'd' || k === 'arrowright') post('nudge', { turn: 15 });
+    else if (k === 'w' || k === 'arrowup') post('nudge', { height: 1 });
+    else if (k === 's' || k === 'arrowdown') post('nudge', { height: -1 });
+    else return;
+    e.preventDefault();
+  });
+  // the scene (the empty part of the page): drag turns the gun, the wheel zooms — panels keep their own mouse
+  const onScene = (e) => D && !e.target.closest('.lxr-hit, .gs-list, .gs-detail, .gs-foot, .gs-top, input, button, select');
+  let drag = null, pending = 0, raf = 0;
+  const flushTurn = () => { raf = 0; if (pending) { post('nudge', { turn: pending }); pending = 0; } };
+  document.addEventListener('mousedown', (e) => { if (e.button === 0 && onScene(e)) { drag = e.clientX; document.body.classList.add('is-dragging'); } });
+  document.addEventListener('mousemove', (e) => { if (drag === null) return; pending += (e.clientX - drag) * 0.4; drag = e.clientX; if (!raf) raf = requestAnimationFrame(flushTurn); });
+  document.addEventListener('mouseup', () => { if (drag !== null) { drag = null; document.body.classList.remove('is-dragging'); flushTurn(); } });
+  document.addEventListener('wheel', (e) => { if (onScene(e)) post('nudge', { zoom: e.deltaY < 0 ? 1 : -1 }); }, { passive: true });
 
   function open(m) {
     D = m.data; L = m.locale || D.locale || {};

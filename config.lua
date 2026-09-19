@@ -99,6 +99,7 @@ Config.Condition = {
 -- The gunsmith repairs, fits and removes components, engraves, and unloads pools.
 -- Ammunition and new guns are sold by lxr-shops.
 Config.Gunsmiths = {
+    -- optional per counter: jobs = { gunsmith = 0 } locks it to a job (name → minimum grade)
     { id = 'valentine',  label = 'Valentine Gunsmith',  coords = vector3(-285.60, 776.07, 119.36), blip = true },
     { id = 'saintdenis', label = 'Saint Denis Gunsmith', coords = vector3(2717.10, -1247.30, 50.78), blip = true, priceMult = 1.25 },
     { id = 'rhodes',     label = 'Rhodes Gunsmith',     coords = vector3(1326.32, -1321.07, 77.04), blip = true },
@@ -142,6 +143,44 @@ Config.Components = {
 -- ████████████████████████████████████████████████████████████████████████████████
 -- ████████████████████████ SECURITY ══════════════════════════════════════════════
 -- ████████████████████████████████████████████████████████████████████████████████
+-- ████████████████████████████████████████████████████████████████████████████████
+-- ████████████████████████ COMBAT ════════════════════════════════════════════════
+-- ████████████████████████████████████████████████████████████████████████████████
+Config.Combat = {
+    damage = { ranged = 1.0, melee = 1.0,      -- SET_PLAYER_WEAPON_DAMAGE_MODIFIER / _MELEE_, applied when the gun in hand changes
+        byCategory = { revolver = 1.0, pistol = 1.0, repeater = 1.0, rifle = 1.0, shotgun = 1.0, sniper = 1.0, bow = 1.0 } },
+    noSprintWhileAiming = true,                -- the sprint control is held down while the player aims
+    infiniteAmmo = 'admin',                    -- /infiniteammo needs this group (false disables the command)
+}
+
+-- ████████████████████████████████████████████████████████████████████████████████
+-- ████████████████████████ INSPECTION ════════════════════════════════════════════
+-- ████████████████████████████████████████████████████████████████████████████████
+-- The game's own weapon-handling animations (names from the animation list): /inspect turns the gun in the
+-- hands (base_enter → base_sweep → base_exit), the gunsmith holds it up while the counter is open, and field
+-- care plays the cleaning loop. One dictionary per category.
+Config.Inspect = {
+    command = 'inspect',
+    dicts = {
+        revolver = 'mech_inspection@weapons@shortarms@cattleman@base',
+        pistol   = 'mech_inspection@weapons@shortarms@semi_auto@base',
+        repeater = 'mech_inspection@weapons@longarms@repeater_winchester@base',
+        rifle    = 'mech_inspection@weapons@longarms@rifle_bolt_action@base',
+        shotgun  = 'mech_inspection@weapons@longarms@shotgun_double_barrel@base',
+        sniper   = 'mech_inspection@weapons@longarms@sniper_rolling_block@base',
+    },
+}
+
+-- the gunsmith counter: a camera on the gun in hand — drag turns, the wheel zooms, W/S raise and lower
+Config.GunsmithCamera = {
+    enabled = true,
+    fov = 28.0, fovRange = { 12.0, 45.0 },
+    offset = vector3(0.0, 1.35, 0.55),      -- from the ped: forward, up
+    look = vector3(0.0, 0.25, 0.55),
+    heightRange = { -0.4, 0.4 },
+    transitionMs = 400,
+}
+
 Config.Security = {
     rateLimit = { windowMs = 2000, burst = 12 },
     maxShotsPerReport = 40,      -- more than this in one report is a modified client

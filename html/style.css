@@ -1,5 +1,6 @@
 /* LXR-WEAPONS — gunsmith counter on top of lxr-ui.css. No colours here: every value is a kit token. */
 .lxr #app { position: fixed; inset: 0; pointer-events: none; }
+.lxr body.is-dragging, .lxr body.is-dragging * { cursor: grabbing !important; user-select: none; }
 .lxr #app > * { pointer-events: auto; }
 .gs-top { position: absolute; top: 28px; left: 40px; right: 40px; display: flex; justify-content: space-between; align-items: flex-start; }
 .gs-brand { display: flex; align-items: center; gap: var(--lxr-s4); }
