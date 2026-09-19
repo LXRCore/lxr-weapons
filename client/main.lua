@@ -247,7 +247,7 @@ CreateThread(function()
             if blip and blip ~= 0 then
                 N(0x74F74D3207ED525C, blip, joaat('blip_shop_gunsmith'), true)
                 N(0x9CB1A1623062F402, blip, s.label)
-                if GetResourceState('lxr-mapcolor') == 'started' then pcall(function() N(0x662D364ABF16DE2F, blip, exports['lxr-mapcolor']:modifier()) end) end
+                if GetResourceState('lxr-mapcolor') == 'started' then pcall(function() N(0x662D364ABF16DE2F, blip, exports['lxr-mapcolor']:modifier('gunsmith')) end) end
                 blips[#blips + 1] = blip
             end
         end
