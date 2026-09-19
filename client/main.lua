@@ -52,12 +52,16 @@ local function applyComponents(e)
     end
 end
 
+-- the ped's rounds follow the server's pools: by difference, with the add / remove natives — a plain
+-- SET on a calibre the ped holds no weapon for is ignored by the game (arrows, throwables), a delta is not
 local function setPoolsOnPed()
     local p = ped()
     for class, c in pairs(LXRShared.AmmoClasses) do
-        local n = tonumber(pools[class]) or 0
-        SetPedAmmoByType(p, c.hash, n)
-        lastAmmo[class] = n
+        local want = tonumber(pools[class]) or 0
+        local have = GetPedAmmoByType(p, c.hash)
+        if want > have then AddAmmoToPedByType(p, c.hash, want - have, ADD_DEFAULT)
+        elseif want < have then RemoveAmmoFromPedByType(p, c.hash, have - want, REMOVE_DEFAULT) end
+        lastAmmo[class] = want
     end
 end
 
@@ -124,6 +128,46 @@ RegisterNetEvent('lxr-weapons:client:removed', function(name)
     for serial, e in pairs(carried) do
         if e.name == name then TriggerServerEvent('lxr-weapons:server:gone', serial) end
     end
+end)
+
+-- loading rounds: progress with the cartridge-handling animation and the calibre's box, then the server moves them
+local function loadProp(item)
+    for prefix, model in pairs(Config.Ammo.loadProps or {}) do
+        if item:sub(1, #prefix) == prefix and (item:sub(#prefix + 1, #prefix + 1) == '' or item:sub(#prefix + 1, #prefix + 1) == '_') then return model end
+    end
+end
+RegisterNetEvent('lxr-weapons:client:load', function(d)
+    if exports['lxr-nui']:IsProgressActive() then return end
+    local p = ped()
+    local a = Config.Ammo.loadAnim
+    local prop
+    if a and a.dict then
+        RequestAnimDict(a.dict)
+        local t = GetGameTimer() + 2000
+        while not HasAnimDictLoaded(a.dict) and GetGameTimer() < t do Wait(10) end
+        if HasAnimDictLoaded(a.dict) then TaskPlayAnim(p, a.dict, a.clip, 4.0, -4.0, -1, 31, 0.0, false, false, false)
+        else print(('^3[lxr-weapons]^7 load: animation dictionary %s did not load'):format(a.dict)) end
+    end
+    local model = loadProp(d.item or '')
+    if model then
+        local hash = joaat(model)
+        RequestModel(hash)
+        local t = GetGameTimer() + 2000
+        while not HasModelLoaded(hash) and GetGameTimer() < t do Wait(10) end
+        if HasModelLoaded(hash) then
+            local c = GetEntityCoords(p)
+            prop = CreateObject(hash, c.x, c.y, c.z, true, true, false)
+            AttachEntityToEntity(prop, p, GetEntityBoneIndexByName(p, 'SKEL_L_Hand'), 0.08, 0.0, 0.0, 0.0, 0.0, 0.0, true, true, false, true, 1, true)
+            SetModelAsNoLongerNeeded(hash)
+        end
+    end
+    local done = nil
+    exports['lxr-nui']:Progress({ label = Lang:t('ui.loading', { label = d.label, n = d.n }), duration = d.ms or 2500, canCancel = true }, function(ok) done = ok end)
+    while done == nil do Wait(50) end
+    ClearPedTasks(p)
+    if prop then DeleteEntity(prop) end
+    if a and a.dict then RemoveAnimDict(a.dict) end
+    if done then TriggerServerEvent('lxr-weapons:server:loaded', d.item) end
 end)
 
 -- field care: progress while holding the gun, then the server applies it

@@ -142,21 +142,41 @@ local function useWeapon(src, item)
     log('drawn', { source = src, item = it.name, serial = serial })
 end
 
--- using a cartridge item: load rounds into its pool
+-- using a cartridge item: how many rounds the pool can take from this stack
+local function loadable(src, P, name, slot)
+    local held = Inventory.GetItem(src, name, tonumber(slot)) or Inventory.GetItem(src, name)
+    if not held then return nil end
+    local want = Config.Ammo.loadPerUse > 0 and math.min(Config.Ammo.loadPerUse, held.amount) or held.amount
+    local room = W.PoolCap(name) - (tonumber(pools(P)[name]) or 0)
+    return held, math.min(want, room)
+end
+
+-- using a cartridge item: the client plays the loading, then confirms; the rounds move on the confirm
+local loading = {}   -- src → { name, slot, at }
 local function useAmmo(src, item)
     local P = player(src)
     local class = W.AmmoClass(item.name)
     if not P or not class then return end
-    local held = Inventory.GetItem(src, item.name, tonumber(item.slot)) or Inventory.GetItem(src, item.name)
+    local held, n = loadable(src, P, item.name, item.slot)
     if not held then return end
-    local want = Config.Ammo.loadPerUse > 0 and math.min(Config.Ammo.loadPerUse, held.amount) or held.amount
-    local room = W.PoolCap(item.name) - (tonumber(pools(P)[item.name]) or 0)
-    local n = math.min(want, room)
     if n <= 0 then return notify(src, 'error.pool_full', 'error', { label = held.label }) end
-    if not Inventory.RemoveItem(src, item.name, n, held.slot, 'ammo loaded') then return end
-    addAmmo(src, item.name, n)
-    notify(src, 'info.loaded', 'success', { n = n, label = held.label })
+    if loading[src] and GetGameTimer() - loading[src].at < Config.Ammo.loadMs + 2000 then return end
+    loading[src] = { name = item.name, slot = held.slot, at = GetGameTimer() }
+    TriggerClientEvent('lxr-weapons:client:load', src, { item = item.name, label = held.label, n = n, ms = Config.Ammo.loadMs })
 end
+RegisterNetEvent('lxr-weapons:server:loaded', function(name)
+    local src = source
+    if limited(src) then return end
+    local pending = loading[src]
+    loading[src] = nil
+    local P = player(src)
+    if not P or not pending or pending.name ~= name or not W.AmmoClass(name) then return end
+    local held, n = loadable(src, P, name, pending.slot)
+    if not held or n <= 0 then return end
+    if not Inventory.RemoveItem(src, name, n, held.slot, 'ammo loaded') then return end
+    addAmmo(src, name, n)
+    notify(src, 'info.loaded', 'success', { n = n, label = held.label })
+end)
 
 -- field care on the gun in hand
 local function useCare(src, item)
@@ -411,7 +431,7 @@ CreateThread(function()
     end
 end)
 
-AddEventHandler('playerDropped', function() loadouts[source] = nil buckets[source] = nil warned[source] = nil end)
+AddEventHandler('playerDropped', function() loadouts[source] = nil buckets[source] = nil warned[source] = nil loading[source] = nil end)
 AddEventHandler('lxr:player:unloaded', function(src) loadouts[src] = nil warned[src] = nil end)
 
 -- ═══════════════════════════════════════════════════════════════════════════════

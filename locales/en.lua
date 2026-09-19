@@ -18,7 +18,7 @@ Locale.Register('en', {
         paid = 'Paid $%{amount}.', unloaded = '%{n} rounds returned to your satchel.',
     },
     ui = {
-        gunsmith = 'Gunsmith', caring = 'Tending %{label}', weapons = 'Your guns', none = 'Nothing in the satchel', condition = 'Condition', repair = 'Repair',
+        gunsmith = 'Gunsmith', caring = 'Tending %{label}', loading = 'Loading %{n} × %{label}', weapons = 'Your guns', none = 'Nothing in the satchel', condition = 'Condition', repair = 'Repair',
         parts = 'Parts', ammo = 'Loaded cartridges', unload = 'Unload', close = 'Leave', cash = 'Cash', fitted = 'Fitted', fit = 'Fit', remove = 'Remove',
         damage = 'Damage', range = 'Range', rate = 'Rate of fire', accuracy = 'Accuracy', reload = 'Reload', serial = 'Serial', maker = 'Maker', era = 'Pattern',
         clip = 'Rounds', drawn = 'On you', stowed = 'In the satchel', cosmetic = 'Cosmetic', pristine = 'Like new', jammed = 'Jammed', hint_close = 'leave',

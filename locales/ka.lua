@@ -18,7 +18,7 @@ Locale.Register('ka', {
         paid = 'გადახდილია $%{amount}.', unloaded = '%{n} ვაზნა დაბრუნდა ჩანთაში.',
     },
     ui = {
-        gunsmith = 'მეიარაღე', caring = '%{label}-ის მოვლა', weapons = 'შენი იარაღი', none = 'ჩანთაში არაფერია', condition = 'მდგომარეობა', repair = 'შეკეთება',
+        gunsmith = 'მეიარაღე', caring = '%{label}-ის მოვლა', loading = 'იტენება %{n} × %{label}', weapons = 'შენი იარაღი', none = 'ჩანთაში არაფერია', condition = 'მდგომარეობა', repair = 'შეკეთება',
         parts = 'ნაწილები', ammo = 'ჩატენილი ვაზნები', unload = 'ამოტენა', close = 'წასვლა', cash = 'ნაღდი', fitted = 'დაყენებული', fit = 'დაყენება', remove = 'მოხსნა',
         damage = 'ზიანი', range = 'მანძილი', rate = 'სროლის სიხშირე', accuracy = 'სიზუსტე', reload = 'გადატენა', serial = 'სერია', maker = 'მწარმოებელი', era = 'ნიმუში',
         clip = 'ვაზნები', drawn = 'თან გაქვს', stowed = 'ჩანთაშია', cosmetic = 'დეკორატიული', pristine = 'როგორც ახალი', jammed = 'დაჭედილი', hint_close = 'წასვლა',

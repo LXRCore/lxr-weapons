@@ -64,6 +64,14 @@ Config.Ammo = {
                        ammo_arrow = 40, ammo_arrow_improved = 40, ammo_arrow_smallgame = 40, ammo_arrow_poison = 20, ammo_arrow_fire = 20, ammo_arrow_dynamite = 5 },
     loadPerUse = 0,              -- rounds moved per use of a cartridge item; 0 = the whole stack (capped by the pool)
     returnToSatchel = true,      -- the gunsmith panel can unload a pool back into cartridge items
+    -- loading rounds: a short progress with the cartridge-handling animation and the calibre's box in hand
+    -- (dictionary and clip from the game's animation list; props from the object list — all verified names)
+    loadMs = 2500,
+    loadAnim = { dict = 'mech_inventory@crafting@fallbacks@modify_bullets', clip = 'loop' },
+    loadProps = {                -- item prefix → prop model; the arrow bundle for every arrow kind
+        ammo_revolver = 'p_ammo_revolver', ammo_pistol = 'p_ammo_pistol', ammo_repeater = 'p_ammo_repeater',
+        ammo_rifle = 'p_ammo_rifle', ammo_shotgun = 'p_ammo_shotgun', ammo_22 = 'p_ammo_rifle', ammo_arrow = 'p_ammo_arrow',
+    },
 }
 
 -- ████████████████████████████████████████████████████████████████████████████████
